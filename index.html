@@ -115,23 +115,26 @@ function renderCart(){const e=Object.entries(cart);const n=e.reduce((s,[,q])=>s+
 function render(){const q=document.getElementById('search').value.toLowerCase().trim(),c=cat.value,s=document.getElementById('sort').value;let a=P.filter(p=>(!q||(p.name+' '+p.cat).toLowerCase().includes(q))&&(!c||p.cat===c));if(s==='low')a.sort((x,y)=>x.price-y.price);if(s==='high')a.sort((x,y)=>y.price-x.price);if(s==='az')a.sort((x,y)=>x.name.localeCompare(y.name));grid.innerHTML=a.length?a.map(p=>`<article class="product"><div class="product-art"><span class="tag ${p.tag==='New'?'new':''}">${p.tag}</span><span class="heart">♡</span><img src="assets/${p.image}" alt="${p.name}" loading="lazy"></div><div class="product-info"><div class="catlabel">${p.cat}</div><h3>${p.name}</h3><span class="price">${money(p.price)}</span><span class="discount">EST.</span><button class="add" onclick="add(${p.id})">🛒 Add to Cart</button></div></article>`).join(''):'<p>No products found. Try another search.</p>'}
 function sendOrder(e){e.preventDefault();const items=Object.entries(cart);if(!items.length){toast('Please add a product first');return}const name=document.getElementById('name').value.trim(),phone=document.getElementById('phone').value.trim(),fulfil=document.getElementById('fulfil').value,address=document.getElementById('address').value.trim(),payment=document.getElementById('payment').value;if(fulfil==='Home delivery'&&!address){document.getElementById('address').focus();toast('Please enter your delivery address');return}const lines=items.map(([id,q])=>{const p=P.find(x=>x.id===+id);return `• ${p.name} × ${q} = ${money(p.price*q)}`});const total=items.reduce((s,[id,q])=>s+P.find(p=>p.id===+id).price*q,0);const msg=`Assalam-o-Alaikum Qasim Book Center! I would like to place an order:\n\n${lines.join('\n')}\n\nEstimated total: ${money(total)}\nName: ${name}\nPhone: ${phone}\nOrder type: ${fulfil}\n${fulfil==='Home delivery'?'Address: '+address+'\n':''}Payment preference: ${payment}\n\nPlease confirm stock, final prices and delivery charges.`;window.open('https://wa.me/923144575891?text='+encodeURIComponent(msg),'_blank','noopener')}
 document.getElementById('year').textContent=new Date().getFullYear();render();renderCart();window.addEventListener('scroll',()=>{const d=document.documentElement;document.getElementById('scrollProgress').style.width=((d.scrollTop/(d.scrollHeight-d.clientHeight||1))*100)+'%'});
-</script>
-
+ 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./config.js"></script>
 <script>
-  if (window.QBC_CONFIG &&
-      window.QBC_CONFIG.SUPABASE_URL &&
-      window.QBC_CONFIG.SUPABASE_ANON_KEY) {
+  window.qbcSupabase = null;
+
+  if (
+    window.supabase &&
+    window.QBC_CONFIG &&
+    window.QBC_CONFIG.SUPABASE_URL &&
+    window.QBC_CONFIG.SUPABASE_ANON_KEY
+  ) {
     window.qbcSupabase = window.supabase.createClient(
       window.QBC_CONFIG.SUPABASE_URL,
       window.QBC_CONFIG.SUPABASE_ANON_KEY
     );
+
     console.log("Qasim Book Center: Supabase client ready");
   } else {
     console.error("Supabase configuration missing");
   }
 </script>
 
-</body>
-</html>
