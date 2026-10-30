@@ -1,0 +1,337 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Qasim Book Center | Admin Panel</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="../firebase-config.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f1f5f9;color:#172033}
+header{background:#142b4a;color:white;padding:20px}
+header h2{margin:0}
+.container{max-width:1100px;margin:25px auto;padding:15px}
+.card{background:white;padding:20px;border-radius:13px;margin-bottom:20px;box-shadow:0 3px 15px #0000000c}
+input,select,button{padding:12px;margin:6px 0;border:1px solid #d5dce5;border-radius:7px;font-size:15px}
+input,select{width:100%}
+button{cursor:pointer;background:#1768d1;color:white;border:0;font-weight:bold}
+button:hover{opacity:.88}
+.danger{background:#d93636}
+.secondary{background:#52647a}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.product{border:1px solid #e0e6ee;padding:14px;border-radius:10px}
+.product img{width:100%;height:130px;object-fit:contain;background:#f5f7fa}
+.hidden{display:none}
+.muted{color:#68778a;font-size:14px}
+table{width:100%;border-collapse:collapse}
+td,th{padding:10px;border-bottom:1px solid #e5e9ef;text-align:left}
+.tablewrap{overflow-x:auto}
+#message{font-weight:bold;margin:10px 0}
+@media(max-width:600px){header h2{font-size:20px}.container{padding:10px}.card{padding:14px}}
+</style>
+</head>
+<body>
+
+<header>
+<h2>📚 Qasim Book Center</h2>
+<p>Admin Dashboard — BY RB PRODUCTION</p>
+</header>
+
+<div class="container">
+
+<section id="loginBox" class="card">
+<h2>Admin Login</h2>
+<p class="muted">Apne Firebase admin account se login karein.</p>
+<input id="email" type="email" placeholder="Admin Email">
+<input id="password" type="password" placeholder="Password">
+<button onclick="login()">Login</button>
+<div id="loginMessage"></div>
+</section>
+
+<section id="dashboard" class="hidden">
+
+<div class="card">
+<h2>Welcome, Admin 👋</h2>
+<button class="secondary" onclick="logout()">Logout</button>
+<button onclick="loadProducts()">Refresh Products</button>
+<p id="message"></p>
+</div>
+
+<div class="card">
+<h2>Product Management</h2>
+<input id="productKey" type="hidden">
+
+<label>Product Name</label>
+<input id="name" placeholder="Book or product name">
+
+<label>Category</label>
+<input id="cat" placeholder="Books & Stationery">
+
+<label>Price (PKR)</label>
+<input id="price" type="number" min="0" placeholder="Product price">
+
+<label>Product Emoji</label>
+<input id="art" placeholder="📚">
+
+<label>Tag</label>
+<select id="tag">
+<option>New</option>
+<option>Best Seller</option>
+</select>
+
+<label>Image Filename</label>
+<input id="image" placeholder="product-1.jpg">
+<p class="muted">Image assets folder mein honi chahiye, jaise product-1.jpg.</p>
+
+<button onclick="saveProduct()">Save Product</button>
+<button class="secondary" onclick="clearForm()">Clear Form</button>
+</div>
+
+<div class="card">
+<h2>Sample Products Import</h2>
+<p class="muted">Aapke diye hue 18 sample products Firebase mein import honge. Existing products delete nahi honge.</p>
+<button onclick="importProducts()">Import 18 Sample Products</button>
+</div>
+
+<div class="card">
+<h2>All Products</h2>
+<div id="products" class="grid">Loading...</div>
+</div>
+
+<div class="card">
+<h2>Customer Orders</h2>
+<button onclick="loadOrders()">Refresh Orders</button>
+<div id="orders">Loading...</div>
+</div>
+
+</section>
+</div>
+
+<script>
+const auth = firebase.auth();
+const db = firebase.database();
+
+const sampleProducts = [
+['English Novel (Set of 5)','Books & Stationery',450,'📚','Best Seller','product-1.jpg'],
+['Spiral Notebook (200 Pages)','Notebooks',220,'📒','New','product-2.jpg'],
+['Ball Pen (Blue/Black)','Books & Stationery',45,'🖊️','Best Seller','product-3.jpg'],
+['Paper Cup (50 Pcs)','Disposable Products',180,'🥤','New','product-4.jpg'],
+['Food Container (Pack of 25)','Disposable Products',320,'🥡','Best Seller','product-5.jpg'],
+['Shopping Bags (Pack of 50)','Packing Shoppers',250,'🛍️','New','product-6.jpg'],
+['Permanent Marker (Set of 4)','School Supplies',160,'🖍️','New','product-7.jpg'],
+['Ruler Set (3 Pcs)','School Supplies',90,'📏','Best Seller','product-8.jpg'],
+['Paper Plate (Pack of 50)','Class Plates',220,'🍽️','New','product-9.jpg'],
+['File Folder (Pack of 10)','School Supplies',350,'📁','Best Seller','product-10.jpg'],
+['Plastic Container (Set)','Disposable Products',280,'🥡','New','product-11.jpg'],
+['Kraft Paper Bag (Pack of 25)','Packing Shoppers',320,'🛍️','Best Seller','product-12.jpg'],
+['Exercise Notebook (Single)','Notebooks',80,'📓','New','product-2.jpg'],
+['School Geometry Set','School Supplies',250,'📐','New','product-8.jpg'],
+['Disposable Spoon (Pack of 50)','Disposable Products',120,'🥄','New','product-4.jpg'],
+['Stainless Steel Plate (Single)','Class Plates',280,'🍽️','Best Seller','product-9.jpg'],
+['Paper Shopping Bag (Pack of 25)','Packing Shoppers',300,'🛍️','New','product-12.jpg'],
+['Colour Pencils (Set of 12)','Books & Stationery',190,'🖍️','New','product-3.jpg']
+];
+
+function safe(value){
+  return String(value ?? '').replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+function showMessage(text){
+  document.getElementById('message').textContent = text;
+}
+
+function login(){
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  document.getElementById('loginMessage').textContent = 'Logging in...';
+
+  auth.signInWithEmailAndPassword(email,password)
+    .then(()=> {
+      document.getElementById('loginMessage').textContent = '';
+    })
+    .catch(e=>{
+      document.getElementById('loginMessage').textContent = e.message;
+    });
+}
+
+function logout(){
+  auth.signOut();
+}
+
+auth.onAuthStateChanged(user=>{
+  document.getElementById('loginBox').classList.toggle('hidden',!!user);
+  document.getElementById('dashboard').classList.toggle('hidden',!user);
+
+  if(user){
+    if(user.uid !== 'bi2siNC77wY2xToYiq3AOFHDqK72'){
+      auth.signOut();
+      document.getElementById('loginMessage').textContent = 'This account is not authorized.';
+      return;
+    }
+    loadProducts();
+    loadOrders();
+  }
+});
+
+function clearForm(){
+  ['productKey','name','cat','price','art','image'].forEach(id=>{
+    document.getElementById(id).value='';
+  });
+  document.getElementById('tag').value='New';
+}
+
+function saveProduct(){
+  const key = document.getElementById('productKey').value;
+  const name = document.getElementById('name').value.trim();
+  const cat = document.getElementById('cat').value.trim();
+  const price = Number(document.getElementById('price').value);
+  const art = document.getElementById('art').value.trim() || '📚';
+  const tag = document.getElementById('tag').value;
+  const image = document.getElementById('image').value.trim();
+
+  if(!name || !cat || !Number.isFinite(price) || price < 0){
+    alert('Please enter a valid product name, category and price.');
+    return;
+  }
+
+  const product = {name,cat,price,art,tag,image};
+
+  const operation = key
+    ? db.ref('products/'+key).update(product)
+    : db.ref('products').push(product);
+
+  operation.then(()=>{
+    showMessage('Product saved successfully!');
+    clearForm();
+    loadProducts();
+  }).catch(e=>alert(e.message));
+}
+
+function loadProducts(){
+  db.ref('products').once('value').then(snapshot=>{
+    const data = snapshot.val() || {};
+    const container = document.getElementById('products');
+    const entries = Object.entries(data);
+
+    if(!entries.length){
+      container.innerHTML = '<p>No products yet. Import the sample products above.</p>';
+      return;
+    }
+
+    container.innerHTML = entries.map(([key,p])=>{
+      const src = p.image
+        ? (/^https?:\/\//i.test(p.image) ? p.image : '../assets/'+encodeURIComponent(p.image))
+        : '';
+      return `
+        <div class="product">
+          ${src ? `<img src="${safe(src)}" alt="">` : `<div style="font-size:50px">${safe(p.art || '📚')}</div>`}
+          <h3>${safe(p.name)}</h3>
+          <p>${safe(p.cat)}</p>
+          <b>Rs. ${safe(p.price)}</b>
+          <p class="muted">${safe(p.tag || '')}</p>
+          <button onclick="editProduct('${safe(key)}')">Edit</button>
+          <button class="danger" onclick="deleteProduct('${safe(key)}')">Delete</button>
+        </div>`;
+    }).join('');
+  }).catch(e=>showMessage(e.message));
+}
+
+function editProduct(key){
+  db.ref('products/'+key).once('value').then(s=>{
+    const p=s.val();
+    if(!p)return;
+    document.getElementById('productKey').value=key;
+    document.getElementById('name').value=p.name || '';
+    document.getElementById('cat').value=p.cat || '';
+    document.getElementById('price').value=p.price ?? '';
+    document.getElementById('art').value=p.art || '';
+    document.getElementById('tag').value=p.tag || 'New';
+    document.getElementById('image').value=p.image || '';
+    window.scrollTo({top:0,behavior:'smooth'});
+  });
+}
+
+function deleteProduct(key){
+  if(!confirm('Delete this product?'))return;
+  db.ref('products/'+key).remove()
+    .then(()=>{showMessage('Product deleted.');loadProducts();})
+    .catch(e=>alert(e.message));
+}
+
+function importProducts(){
+  if(!confirm('Import sample products? Existing products will not be deleted.'))return;
+
+  db.ref('products').once('value').then(snapshot=>{
+    const existing=snapshot.val() || {};
+    const updates={};
+    sampleProducts.forEach((p,i)=>{
+      const alreadyExists=Object.values(existing).some(x=>x.name===p[0]);
+      if(!alreadyExists){
+        const key=db.ref('products').push().key;
+        updates[key]={
+          name:p[0],cat:p[1],price:p[2],
+          art:p[3],tag:p[4],image:p[5]
+        };
+      }
+    });
+    if(!Object.keys(updates).length){
+      showMessage('Sample products are already imported.');
+      return;
+    }
+    return db.ref('products').update(updates).then(()=>{
+      showMessage('Sample products imported successfully!');
+      loadProducts();
+    });
+  }).catch(e=>alert(e.message));
+}
+
+function loadOrders(){
+  db.ref('orders').once('value').then(snapshot=>{
+    const orders=snapshot.val() || {};
+    const entries=Object.entries(orders);
+    const box=document.getElementById('orders');
+
+    if(!entries.length){
+      box.innerHTML='<p>No orders found yet.</p>';
+      return;
+    }
+
+    box.innerHTML='<div class="tablewrap"><table><thead><tr><th>Order</th><th>Details</th><th>Status</th><th>Action</th></tr></thead><tbody>'+
+      entries.map(([key,o])=>{
+        const details=safe(JSON.stringify(o,null,2));
+        const status=safe(o.status || 'Pending');
+        return `<tr>
+          <td>${safe(key)}</td>
+          <td><pre style="white-space:pre-wrap">${details}</pre></td>
+          <td>${status}</td>
+          <td>
+            <button onclick="updateOrder('${safe(key)}','Completed')">Complete</button>
+            <button class="danger" onclick="deleteOrder('${safe(key)}')">Delete</button>
+          </td>
+        </tr>`;
+      }).join('')+
+      '</tbody></table></div>';
+  }).catch(e=>{
+    document.getElementById('orders').textContent=e.message;
+  });
+}
+
+function updateOrder(key,status){
+  db.ref('orders/'+key).update({status})
+    .then(loadOrders).catch(e=>alert(e.message));
+}
+
+function deleteOrder(key){
+  if(!confirm('Delete this order?'))return;
+  db.ref('orders/'+key).remove()
+    .then(loadOrders).catch(e=>alert(e.message));
+}
+</script>
+</body>
+</html>
